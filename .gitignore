@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+server/data/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+/deploy.sh
+/DEPLOY.md
+/.deploy-secrets.env

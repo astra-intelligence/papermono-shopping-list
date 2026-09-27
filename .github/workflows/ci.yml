@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest
+
+  server-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t shopping-list server
+      - name: Smoke test
+        run: |
+          docker run -d --name shopping-list -p 8000:8000 shopping-list
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8000/api/health && exit 0
+            sleep 1
+          done
+          docker logs shopping-list
+          exit 1
+
+  firmware:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pip install platformio
+      - run: cp src/secrets.example.h src/secrets.h
+      - run: pio run
+      # Checks the merge step works. The image isn't published: it has placeholder Wi-Fi details
+      # baked in, and flashing it would overwrite the credentials stored on a real device.
+      - run: tools/make_factory_image.sh

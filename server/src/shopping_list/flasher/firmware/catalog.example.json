@@ -1,0 +1,23 @@
+{
+  "firmware": [
+    {
+      "id": "example-merged",
+      "name": "Example (merged image)",
+      "version": "1.0.0",
+      "description": "Single esptool merge-bin / ESPHome factory image written at 0x0",
+      "file": "example-merged.bin",
+      "offset": 0,
+      "sha256": "<sha256 of the file>"
+    },
+    {
+      "id": "example-segments",
+      "name": "Example (segments)",
+      "images": [
+        { "file": "bootloader.bin", "offset": 0,     "sha256": "<...>" },
+        { "file": "partitions.bin", "offset": 32768, "sha256": "<...>" },
+        { "file": "boot_app0.bin",  "offset": 57344, "sha256": "<...>" },
+        { "file": "firmware.bin",   "offset": 65536, "sha256": "<...>" }
+      ]
+    }
+  ]
+}

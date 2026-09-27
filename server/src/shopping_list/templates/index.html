@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shopping List</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+</head>
+<body>
+<header class="topbar">
+  <h1>Shopping List</h1>
+  <div class="topbar-actions">
+    <a href="/flash/" target="_blank" rel="noopener" class="icon-btn" aria-label="Flash PaperMono firmware">Flash</a>
+    <button id="manageAislesBtn" class="icon-btn" aria-label="Manage aisles">Aisles</button>
+  </div>
+</header>
+
+<main>
+  <form id="addForm" class="add-form" autocomplete="off">
+    <div class="add-row">
+      <input id="itemInput" type="text" placeholder="Add an item…" maxlength="128" required>
+      <button id="addItemBtn" type="submit">Add</button>
+    </div>
+    <div class="add-row add-qty-row">
+      <input id="qtyInput" type="number" step="any" min="0" placeholder="Qty (optional)">
+      <select id="unitInput" aria-label="Unit">
+        <option value="">None</option>
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="mL">mL</option>
+        <option value="L">L</option>
+      </select>
+    </div>
+    <ul id="suggestions" class="suggestions hidden"></ul>
+  </form>
+
+  <div id="listContainer" class="list-container">
+    <p class="empty" id="emptyMessage">Loading…</p>
+  </div>
+
+  <button id="clearPurchasedBtn" class="secondary">Clear purchased</button>
+</main>
+
+<div id="aislesModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Aisles</h2>
+      <button id="closeAislesBtn" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <p class="hint">Order matches how you walk the shop. New items sort into "Uncategorized" until classified.</p>
+    <ul id="aisleList" class="aisle-list"></ul>
+    <form id="addAisleForm" class="add-row">
+      <input id="aisleInput" type="text" placeholder="New aisle name" maxlength="64" required>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+</div>
+
+<div id="quantityModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Quantity</h2>
+      <button id="closeQuantityBtn" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <form id="quantityForm" class="add-row add-qty-row">
+      <input id="quantityQtyInput" type="number" step="any" min="0" placeholder="Qty (optional)">
+      <select id="quantityUnitInput" aria-label="Unit">
+        <option value="">None</option>
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="mL">mL</option>
+        <option value="L">L</option>
+      </select>
+    </form>
+    <div class="add-row">
+      <button id="clearQuantityBtn" type="button" class="secondary">Clear</button>
+      <button id="saveQuantityBtn" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden" role="alert"></div>
+
+<script src="/static/app.js?v={{ static_version }}"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# systemd unit for the shopping list server. Assumes the repo is checked out at
+# /opt/papermono-shopping-list with a virtualenv at server/.venv - see docs/server.md.
+#
+# Secrets (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) belong in /etc/papermono-shopping-list.env,
+# not in this file.
+[Unit]
+Description=PaperMono Shopping List server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shopping-list
+# Creates /var/lib/papermono-shopping-list owned by User=.
+StateDirectory=papermono-shopping-list
+WorkingDirectory=/var/lib/papermono-shopping-list
+Environment=SHOPPING_LIST_DB=/var/lib/papermono-shopping-list/shopping.db
+# The claude CLI keeps its own state under $HOME, so it needs a writable one.
+Environment=HOME=/var/lib/papermono-shopping-list
+EnvironmentFile=-/etc/papermono-shopping-list.env
+ExecStart=/opt/papermono-shopping-list/server/.venv/bin/uvicorn shopping_list.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

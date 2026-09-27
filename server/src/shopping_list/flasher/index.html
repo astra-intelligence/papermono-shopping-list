@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperMono Flasher</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="back" href="/">← Shopping List</a>
+  <h1>PaperMono Flasher</h1>
+  <p class="sub">M5Stack PaperMono C153 · ESP32-S3 · 16&nbsp;MB · runs entirely in your browser over WebSerial</p>
+</header>
+
+<main>
+  <div id="unsupported" class="banner error" hidden>
+    This browser has no WebSerial. Use desktop <b>Chrome</b> or <b>Edge</b>, over <b>HTTPS</b> or <b>localhost</b>.
+  </div>
+
+  <!-- 1. Connect -->
+  <section class="card">
+    <h2><span class="step">1</span> Connect</h2>
+    <ol class="help">
+      <li>Plug the PaperMono into this computer with a USB-C <b>data</b> cable. Close any other serial monitor.</li>
+      <li>If connecting fails (or the running firmware has crashed), hold the <b>power button ~2&nbsp;s</b> until the small red LED blinks. That's download mode.</li>
+    </ol>
+    <label class="check"><input type="checkbox" id="confirmModel">
+      This is an <b>M5Stack PaperMono C153</b>. (The browser can't tell a PaperMono from any other ESP32-S3.)</label>
+    <div class="row">
+      <button id="btnConnect" class="primary" disabled>Connect</button>
+      <button id="btnDisconnect" disabled>Disconnect</button>
+    </div>
+    <dl id="deviceInfo" class="info" hidden></dl>
+    <div id="partitions" hidden>
+      <h3>Partition table on device</h3>
+      <table><thead><tr><th>Label</th><th>Type</th><th>Offset</th><th>Size</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- 2. Backup -->
+  <section class="card">
+    <h2><span class="step">2</span> Back up this unit <span class="tag">do this once, first</span></h2>
+    <p class="help">Reads the whole 16&nbsp;MB flash to a file. That includes this unit's Wi-Fi/radio calibration (NVS), which the factory image can't restore. Keep the file private: it can contain Wi-Fi credentials. It takes a few minutes.</p>
+    <div class="row">
+      <button id="btnBackup" disabled>Download full backup</button>
+    </div>
+  </section>
+
+  <!-- 3. Flash -->
+  <section class="card">
+    <h2><span class="step">3</span> Flash firmware</h2>
+
+    <div id="catalogBox" hidden>
+      <h3>Firmware on this server</h3>
+      <div id="catalog" class="catalog"></div>
+    </div>
+
+    <h3>…or a file from your computer</h3>
+    <div class="row wrap">
+      <input type="file" id="fileInput" accept=".bin">
+      <label>Write at
+        <select id="fileOffset">
+          <option value="auto" selected>auto-detect</option>
+          <option value="0">0x0 (merged / factory image)</option>
+          <option value="65536">0x10000 (app only)</option>
+        </select>
+      </label>
+    </div>
+    <p class="help">ESPHome "Factory format" and <code>esptool merge-bin</code> images go at <b>0x0</b>. A plain app / "OTA format" image goes at <b>0x10000</b>, and only works if the device's partition table already has an app slot there.</p>
+
+    <div id="plan" class="plan" hidden></div>
+
+    <label class="check"><input type="checkbox" id="eraseAll"> Erase the entire flash first. <b>Not recommended</b>: this wipes NVS and this unit's calibration.</label>
+    <div class="row">
+      <button id="btnFlash" class="primary" disabled>Flash</button>
+    </div>
+    <progress id="progress" max="100" value="0" hidden></progress>
+  </section>
+
+  <!-- 4. Console -->
+  <section class="card">
+    <h2><span class="step">4</span> Serial console</h2>
+    <div class="row">
+      <button id="btnConsole" disabled>Open console (115200)</button>
+      <button id="btnReset" disabled>Reset device</button>
+      <button id="btnClear">Clear log</button>
+    </div>
+    <pre id="log" aria-live="polite"></pre>
+  </section>
+</main>
+
+<footer>
+  Uses <a href="https://github.com/espressif/esptool-js">esptool-js</a> 0.7.0 and
+  <a href="https://github.com/satazor/js-spark-md5">spark-md5</a>. Source: <code>server/src/shopping_list/flasher</code>.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/spark-md5@3.0.2/spark-md5.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
