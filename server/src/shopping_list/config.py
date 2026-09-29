@@ -23,6 +23,9 @@ class Settings:
     firmware_dir: Path = Path("data/firmware")
     # The version every device should run. None means no OTA is offered.
     firmware_version: str | None = None
+    # Export OpenTelemetry traces/metrics/logs. On only when an OTLP endpoint is configured; the
+    # endpoint, auth headers and service name are read by the SDK itself from the standard OTEL_* vars.
+    telemetry_enabled: bool = False
 
 
 def load_settings() -> Settings:
@@ -33,4 +36,8 @@ def load_settings() -> Settings:
         classify_timeout_seconds=float(os.environ.get("SHOPPING_LIST_CLASSIFY_TIMEOUT", "30")),
         firmware_dir=Path(os.environ.get("SHOPPING_LIST_FIRMWARE_DIR", "data/firmware")),
         firmware_version=os.environ.get("SHOPPING_LIST_FIRMWARE_VERSION", "").strip() or None,
+        telemetry_enabled=bool(
+            os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+            and os.environ.get("OTEL_SDK_DISABLED", "").strip().lower() != "true"
+        ),
     )

@@ -4,8 +4,10 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <esp_log.h>
+#include <esp_random.h>
 
 #include "config.h"
+#include "hal/bsp.h"
 #include "sync/local_store.h"
 #include "sync/model_json.h"
 
@@ -97,12 +99,33 @@ void SyncClient::replayPending() {
              (unsigned)(pending.size() - retry.size()), (unsigned)retry.size());
 }
 
+// Device health and trace context for the server's telemetry (see docs/server.md#observability-
+// opentelemetry). Purely informational: the server never changes its answer because of them, and
+// implausible readings are left out rather than sent.
+static void addHealthHeaders(HTTPClient& http) {
+    const int percent = BSP::getInstance().getBatteryState().percentage;
+    if (percent >= 0 && percent <= 100) http.addHeader("X-Battery-Percent", String(percent));
+    const int rssi = WiFi.RSSI();
+    if (rssi < 0) http.addHeader("X-Wifi-Rssi", String(rssi));
+    http.addHeader("X-Free-Heap", String((unsigned)ESP.getFreeHeap()));
+
+    // W3C traceparent, so the server's spans and logs for this sync share a trace id we can also
+    // print here and match against serial output.
+    char traceparent[56];
+    snprintf(traceparent, sizeof traceparent, "00-%08x%08x%08x%08x-%08x%08x-01", (unsigned)esp_random(),
+             (unsigned)esp_random(), (unsigned)esp_random(), (unsigned)esp_random(), (unsigned)esp_random(),
+             (unsigned)esp_random());
+    http.addHeader("traceparent", traceparent);
+    ESP_LOGI(TAG, "sync traceparent %s", traceparent);
+}
+
 bool SyncClient::fetch(ShoppingData& data) {
     HTTPClient http;
     http.setTimeout(Config::kHttpTimeoutMs);
     if (!http.begin(String(Config::kServerBaseUrl) + "/api/sync")) return false;
     // Lets the server decide whether to offer this device a firmware update.
     http.addHeader("X-Firmware-Version", Config::kFirmwareVersion);
+    addHealthHeaders(http);
     // Parsing straight from the stream needs a length-delimited body, not chunked encoding; this is
     // ArduinoJson's documented way to get that from HTTPClient.
     http.useHTTP10(true);

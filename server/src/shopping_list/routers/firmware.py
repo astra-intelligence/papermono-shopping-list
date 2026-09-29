@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from .. import firmware
+from .. import firmware, telemetry
 
 router = APIRouter(prefix="/api", tags=["firmware"])
 
@@ -12,4 +12,9 @@ def download(version: str, request: Request):
     path = firmware.image_path(request.app.state.settings, version)
     if path is None:
         raise HTTPException(status_code=404, detail="no such firmware version")
+    # Range requests (resumed downloads) re-hit this route too; count only the first byte-range.
+    if not request.headers.get("range", "").startswith("bytes=") or request.headers["range"].startswith(
+        "bytes=0-"
+    ):
+        telemetry.firmware_downloads.add(1, {"version": version})
     return FileResponse(path, media_type="application/octet-stream", filename=f"{version}.bin")

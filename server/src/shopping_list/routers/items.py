@@ -1,13 +1,16 @@
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from opentelemetry import trace
 
-from .. import repository
+from .. import repository, telemetry
 from ..classifier import Classifier
 from ..db import get_db
 from ..models import ItemCreate, ItemOut, ItemUpdate
 
 router = APIRouter(prefix="/api/items", tags=["items"])
+log = logging.getLogger(__name__)
 
 
 def get_classifier(request: Request) -> Classifier:
@@ -52,7 +55,11 @@ def create_item(
         _require_category(conn, body.category_id)
     quantity, unit = _normalize_quantity(body.quantity, body.unit)
     category_id = repository.resolve_category_id(conn, name, body.category_id, classifier)
-    return repository.create_item(conn, name, category_id, quantity, unit)
+    item = repository.create_item(conn, name, category_id, quantity, unit)
+    telemetry.items_created.add(1)
+    trace.get_current_span().set_attribute("item.name", name)
+    log.info("added item %r (id %d)", name, item.id)
+    return item
 
 
 @router.patch("/{item_id}", response_model=ItemOut)
@@ -75,6 +82,11 @@ def update_item(item_id: int, body: ItemUpdate, conn: sqlite3.Connection = Depen
     quantity = item.quantity if "quantity" not in fields_set else body.quantity
     unit = item.unit if "unit" not in fields_set else body.unit
     quantity, unit = _normalize_quantity(quantity, unit)
+
+    if body.purchased is not None and body.purchased != item.purchased:
+        telemetry.items_purchased.add(1, {"purchased": body.purchased})
+        log.info("item %r marked %s", name, "purchased" if body.purchased else "not purchased")
+    trace.get_current_span().set_attribute("item.name", name)
 
     return repository.update_item(
         conn,

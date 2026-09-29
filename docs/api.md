@@ -49,6 +49,18 @@ read.
 - `firmware` is only present when the server wants the requesting device on a
   different firmware version. See [Firmware updates](#firmware-updates).
 
+Devices may also send optional health headers, which the server records as metrics
+(see [Observability](server.md#observability-opentelemetry)) and never uses to change the response:
+
+| Header | Range | |
+|--------|-------|--|
+| `X-Battery-Percent` | 0-100 | Battery level |
+| `X-Wifi-Rssi` | -127-0 | Wi-Fi signal, dBm |
+| `X-Free-Heap` | >= 0 | Free heap, bytes |
+| `traceparent` | W3C | Trace context; the server's spans for this sync join that trace |
+
+Missing, malformed or out-of-range values are ignored; they never fail the sync.
+
 ## Firmware updates
 
 The device says which firmware it's running with a request header on
