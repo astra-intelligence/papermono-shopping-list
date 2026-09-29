@@ -93,6 +93,16 @@ void maybeUpdateFirmware() {
     g_list.setUpdating(false);
 }
 
+// Delay until the next periodic sync. A successful sync carries the server's schedule; without one
+// (failure, or an older server) fall back to the fixed interval.
+uint32_t nextSyncDelayMs(bool syncOk) {
+    const uint32_t scheduled = syncOk ? SyncClient::getInstance().nextSyncDelayMs() : 0;
+    if (scheduled == 0) return Config::kSyncIntervalMs;
+    if (scheduled < Config::kMinScheduledSyncMs) return Config::kMinScheduledSyncMs;
+    if (scheduled > Config::kMaxScheduledSyncMs) return Config::kMaxScheduledSyncMs;
+    return scheduled;
+}
+
 void runSync(uint32_t wifiTimeoutMs) {
     // Compare before and after so a periodic sync that changed nothing doesn't flash the panel.
     const std::vector<Category> previousCategories = g_data.categories;
@@ -116,7 +126,7 @@ void runSync(uint32_t wifiTimeoutMs) {
         BSP::getInstance().setLedSyncFailed();
         g_syncCooldownUntilMs = millis() + Config::kFailedSyncCooldownMs;
     }
-    g_nextSyncMs = millis() + Config::kSyncIntervalMs;
+    g_nextSyncMs = millis() + nextSyncDelayMs(ok);
     g_syncRequested = false;
 }
 
@@ -158,8 +168,8 @@ void handleTouch() {
     const TouchEvent ev = touch.popEvent();
 
     // Any tap is a sign someone's actively using the device - opportunistically sync if the last one
-    // is getting stale, rather than leaving the list stale for the rest of what's now a full hour
-    // between periodic syncs. Safe to request unconditionally even while an overlay is open:
+    // is getting stale, rather than leaving the list stale until the next scheduled sync, which can
+    // be hours away. Safe to request unconditionally even while an overlay is open:
     // maybeSync() only actually runs a sync once overlayOpen() is false.
     if (ev.type == TouchEventType::Click) {
         const SyncStatus& status = SyncClient::getInstance().status();

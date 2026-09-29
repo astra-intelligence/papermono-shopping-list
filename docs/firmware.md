@@ -33,7 +33,7 @@ missing. Set it correctly before flashing: the ESP32 Wi-Fi stack saves whatever
 credentials it's given to flash, so a build with placeholder values would
 overwrite credentials a previous firmware stored.
 
-Other tunables (sync interval, timeouts, the partial-refresh limit) are in
+Other tunables (fallback sync interval, timeouts, the partial-refresh limit) are in
 `src/config.h`.
 
 The firmware's own version is `FW_VERSION` in `platformio.ini`'s `build_flags`.
@@ -145,11 +145,13 @@ through the pending-verify step.
 | Short press the power button | Power off. |
 
 The status LED blinks green after a successful sync and red after a failed one.
-The header shows how long ago the last successful sync was (or "syncing..." / "updating firmware..." while one runs) on the left and the battery percentage on the right, both in large type. The device syncs
-periodically (every hour) and also opportunistically on any tap if the last
+The header shows when the last successful sync happened, as a time of day taken from the server ("Synced 14:05", or "Offline, last 14:05" if the latest attempt failed; "syncing..." / "updating firmware..." while one runs) on the left and the battery percentage on the right, both in large type. The device syncs
+on the schedule set in the web UI (by default every 30 minutes from 07:00 to
+22:00 and never overnight; the server sends the wait after each sync, with an
+hourly fallback if it can't be reached) and also opportunistically on any tap if the last
 sync is more than 5 minutes old, so actively using it keeps the list fresh
 without needing a fast fixed interval running in the background the rest of
-the time.
+the time. Firmware from before 1.4.0 ignores the schedule and syncs hourly.
 
 Items added while the server can't be reached show in grey under **PENDING SYNC**
 and can't be ticked until they've synced. Everything on screen and every queued

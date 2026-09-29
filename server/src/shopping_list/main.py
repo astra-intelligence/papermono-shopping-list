@@ -12,8 +12,9 @@ from . import telemetry
 from .classifier import Classifier, build_classifier
 from .config import Settings, load_settings
 from .db import init_db
-from .routers import catalog, categories, items, sync
+from .routers import catalog, categories, items, sync, sync_schedule
 from .routers import firmware as firmware_router
+from .schedule import resolve_timezone
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
@@ -36,7 +37,7 @@ def _static_version() -> str:
     the browser hasn't already cached.
     """
     h = hashlib.sha256()
-    for name in ("app.js", "style.css"):
+    for name in ("app.js", "schedule.js", "style.css"):
         h.update((STATIC_DIR / name).read_bytes())
     return h.hexdigest()[:10]
 
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None, classifier: Classifier | None =
     app = FastAPI(title="PaperMono Shopping List", lifespan=lifespan)
     app.state.settings = settings
     app.state.classifier = classifier or build_classifier(settings)
+    app.state.tz = resolve_timezone(settings.timezone)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     # PaperMono web flasher (esptool-js over WebSerial), folded in here so it's served from the
@@ -80,11 +82,16 @@ def create_app(settings: Settings | None = None, classifier: Classifier | None =
     app.include_router(items.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    app.include_router(sync_schedule.router)
     app.include_router(firmware_router.router)
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index(request: Request):
         return templates.TemplateResponse(request, "index.html", {"static_version": static_version})
+
+    @app.get("/schedule", response_class=HTMLResponse, include_in_schema=False)
+    def schedule_page(request: Request):
+        return templates.TemplateResponse(request, "schedule.html", {"static_version": static_version})
 
     @app.get("/api/health", tags=["health"])
     def health():

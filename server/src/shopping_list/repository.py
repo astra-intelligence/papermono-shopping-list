@@ -1,5 +1,6 @@
 """All SQL lives here; the routers only translate between HTTP and these functions."""
 
+import json
 import logging
 import sqlite3
 import time
@@ -8,6 +9,7 @@ from . import telemetry
 from .classifier import ClassificationError, Classifier
 from .db import UNCATEGORIZED_NAME, UNCATEGORIZED_SORT_ORDER
 from .models import CatalogEntry, CategoryOut, ItemOut
+from .schedule import DEFAULT_SCHEDULE, PRESETS_BY_ID, Schedule
 
 log = logging.getLogger(__name__)
 
@@ -248,3 +250,43 @@ def _classify(conn: sqlite3.Connection, item_name: str, classifier: Classifier) 
     telemetry.classifications.add(1, {"outcome": outcome})
     telemetry.classify_duration.record(elapsed, {"outcome": outcome})
     return category_id
+
+
+_SYNC_SCHEDULE_KEY = "sync_schedule"
+
+
+def get_sync_schedule(conn: sqlite3.Connection) -> Schedule:
+    """The saved sync schedule, or the default if none is saved or the stored value is unusable
+    (say, a preset that a later version removed) - a bad row must never stop the list syncing."""
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (_SYNC_SCHEDULE_KEY,)).fetchone()
+    if row is None:
+        return DEFAULT_SCHEDULE
+    try:
+        data = json.loads(row["value"])
+        schedule = Schedule(
+            weekday=data["weekday"], weekend=data["weekend"], weekend_same=bool(data["weekend_same"])
+        )
+    except (ValueError, KeyError, TypeError):
+        log.warning("ignoring unreadable stored sync schedule")
+        return DEFAULT_SCHEDULE
+    if schedule.weekday not in PRESETS_BY_ID or schedule.weekend not in PRESETS_BY_ID:
+        log.warning("stored sync schedule names an unknown preset; using the default")
+        return DEFAULT_SCHEDULE
+    return schedule
+
+
+def set_sync_schedule(conn: sqlite3.Connection, schedule: Schedule) -> None:
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (
+            _SYNC_SCHEDULE_KEY,
+            json.dumps(
+                {
+                    "weekday": schedule.weekday,
+                    "weekend": schedule.weekend,
+                    "weekend_same": schedule.weekend_same,
+                }
+            ),
+        ),
+    )

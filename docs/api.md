@@ -38,7 +38,7 @@ Everything a client needs, in one response. The firmware uses nothing else to
 read.
 
 ```json
-{ "categories": [Category], "items": [Item], "catalog": [CatalogEntry] }
+{ "categories": [Category], "items": [Item], "catalog": [CatalogEntry], "next_sync_in_s": 1800, "synced_at": "14:05" }
 ```
 
 - `categories` are in walking order (`sort_order`, then name).
@@ -46,6 +46,12 @@ read.
   aisle. Items with no aisle sort with `Uncategorized`, last. Clients render in
   this order and rely on it for grouping.
 - `catalog` is alphabetical.
+- `next_sync_in_s` is how many seconds the device should wait before its next
+  periodic sync, from the [sync schedule](#sync-schedule). Always present, between
+  30 and 43200 (12 hours). A client that doesn't sleep can ignore it.
+- `synced_at` is the server's local time of day when it answered, as `HH:MM` in
+  `SHOPPING_LIST_TIMEZONE`. The device shows it in its header ("Synced 14:05"), because
+  it has no clock and a panel that only redraws on a sync can't show an age.
 - `firmware` is only present when the server wants the requesting device on a
   different firmware version. See [Firmware updates](#firmware-updates).
 
@@ -60,6 +66,48 @@ Devices may also send optional health headers, which the server records as metri
 | `traceparent` | W3C | Trace context; the server's spans for this sync join that trace |
 
 Missing, malformed or out-of-range values are ignored; they never fail the sync.
+
+## Sync schedule
+
+Which times the device syncs is set on the server, from the web UI's **Schedule**
+page. It is a preset for weekdays and a preset for weekends (Saturday and
+Sunday), read in the server's timezone (`SHOPPING_LIST_TIMEZONE`, see
+[server.md](server.md#configuration)). Each preset is one or more time windows
+and an interval inside them; outside every window the device is left alone.
+Windows are half-open, so an hourly 07:00-09:00 window syncs at 07:00 and 08:00.
+
+### `GET /api/sync-schedule`
+
+```json
+{
+  "weekday": "work",
+  "weekend": "day",
+  "weekend_same": false,
+  "presets": [
+    {
+      "id": "work",
+      "name": "Before and after work",
+      "description": "Hourly 07:00 to 09:00 and 17:00 to 22:00. Quiet the rest of the day.",
+      "interval_minutes": 60,
+      "windows": [{ "start": "07:00", "end": "09:00" }, { "start": "17:00", "end": "22:00" }],
+      "syncs_per_day": 7
+    }
+  ]
+}
+```
+
+`presets` lists every choice (the built-in ones are `work`, `day`, `saver` and
+`always`). When `weekend_same` is true weekends follow `weekday`, and `weekend`
+is kept only so the choice isn't lost if the box is unticked again. A fresh install uses
+`day` for both.
+
+### `PUT /api/sync-schedule` -> `200`
+
+Body: `{ "weekday": "work", "weekend": "day", "weekend_same": false }`. Replies
+with the same document as `GET`. `422` if either preset id is unknown.
+
+The change reaches a device on its next sync, because that is when it is told
+how long to sleep.
 
 ## Firmware updates
 

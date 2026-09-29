@@ -1,9 +1,10 @@
 import logging
 import sqlite3
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 
-from .. import firmware, repository, telemetry
+from .. import firmware, repository, schedule, telemetry
 from ..db import get_db
 from ..models import SyncResponse
 
@@ -38,6 +39,7 @@ def sync(
     list, so resending everything is simpler and more robust than tracking versions across the
     device's long Wi-Fi-off windows.
 
+    `next_sync_in_s` tells the device how long to wait before its next periodic sync (see schedule.py).
     A device that sends `X-Firmware-Version` may also get a `firmware` offer (see firmware.py).
     """
     battery = _reading(x_battery_percent, 0, 100)
@@ -56,10 +58,15 @@ def sync(
     offer = firmware.offer_for(request.app.state.settings, x_firmware_version)
     if offer:
         telemetry.firmware_offers.add(1, {"from": x_firmware_version, "to": offer.version})
+    now = datetime.now(UTC)
     body = SyncResponse(
         categories=repository.list_categories(conn),
         items=repository.list_items(conn),
         catalog=repository.list_catalog(conn),
+        next_sync_in_s=schedule.next_sync_delay(
+            repository.get_sync_schedule(conn), now, request.app.state.tz
+        ),
+        synced_at=now.astimezone(request.app.state.tz).strftime("%H:%M"),
         firmware=offer,
     )
     # `firmware` must be absent, not null, when there's no offer, but `response_model_exclude_none`

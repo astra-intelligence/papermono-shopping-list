@@ -1,7 +1,9 @@
 """Request/response bodies. These are the wire format the firmware parses too (see
 firmware/src/sync/model_json.h), so field names are part of the device contract."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from .schedule import PRESETS_BY_ID
 
 
 class CategoryOut(BaseModel):
@@ -68,5 +70,42 @@ class SyncResponse(BaseModel):
     categories: list[CategoryOut]
     items: list[ItemOut]
     catalog: list[CatalogEntry]
+    # Seconds the device should wait before its next periodic sync; see schedule.py.
+    next_sync_in_s: int
+    # Local time of day the server answered ("14:05"), in the configured timezone. The device has no
+    # clock and its e-paper header can't tick, so it shows this fixed time instead of an age.
+    synced_at: str
     # Left out of the JSON entirely (not null) unless the device should update; see routers/sync.py.
     firmware: FirmwareOffer | None = None
+
+
+class SyncScheduleIn(BaseModel):
+    # Preset ids, see schedule.PRESETS.
+    weekday: str
+    weekend: str
+    weekend_same: bool = False
+
+    @field_validator("weekday", "weekend")
+    @classmethod
+    def _known_preset(cls, value: str) -> str:
+        if value not in PRESETS_BY_ID:
+            raise ValueError(f"unknown preset {value!r}; expected one of {sorted(PRESETS_BY_ID)}")
+        return value
+
+
+class TimeWindow(BaseModel):
+    start: str  # "HH:MM"
+    end: str  # "HH:MM", or "24:00" for end of day
+
+
+class PresetOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    interval_minutes: int
+    windows: list[TimeWindow]
+    syncs_per_day: int
+
+
+class SyncScheduleOut(SyncScheduleIn):
+    presets: list[PresetOut]

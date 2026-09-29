@@ -24,7 +24,8 @@ for your own PaperMono firmware.
 - **A usable touch UI on e-paper.** Tap, swipe and the side buttons all work.
   There's an on-screen keyboard that only redraws the parts that change as you
   type, and it suggests items you've added before.
-- **Low-power networking.** Wi-Fi is on only while syncing: every hour, sooner
+- **Low-power networking.** Wi-Fi is on only while syncing: on a schedule you set
+  in the web UI (say, nothing overnight and more often at weekends), sooner
   if you tap the screen and the last sync is more than 5 minutes stale, and
   straight after an edit. Everything else works offline, and edits are queued
   on flash until the next sync.
@@ -54,7 +55,7 @@ Claude.
 
 ```mermaid
 flowchart LR
-    device["PaperMono<br/>(firmware/)"] -- "Wi-Fi, hourly or on tap<br/>and after each edit" --> server
+    device["PaperMono<br/>(firmware/)"] -- "Wi-Fi, on a schedule or on tap<br/>and after each edit" --> server
     phone["Phone browser"] -- HTTP --> server
     subgraph server["Server (server/)"]
         api["FastAPI + SQLite"]
