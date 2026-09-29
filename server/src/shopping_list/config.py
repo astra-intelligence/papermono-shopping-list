@@ -26,6 +26,9 @@ class Settings:
     # Export OpenTelemetry traces/metrics/logs. On only when an OTLP endpoint is configured; the
     # endpoint, auth headers and service name are read by the SDK itself from the standard OTEL_* vars.
     telemetry_enabled: bool = False
+    # IANA timezone the sync schedule's clock times (and "weekend") are read in, e.g. "Europe/Dublin".
+    # Empty means the server's own local timezone.
+    timezone: str = ""
 
 
 def load_settings() -> Settings:
@@ -36,6 +39,7 @@ def load_settings() -> Settings:
         classify_timeout_seconds=float(os.environ.get("SHOPPING_LIST_CLASSIFY_TIMEOUT", "30")),
         firmware_dir=Path(os.environ.get("SHOPPING_LIST_FIRMWARE_DIR", "data/firmware")),
         firmware_version=os.environ.get("SHOPPING_LIST_FIRMWARE_VERSION", "").strip() or None,
+        timezone=os.environ.get("SHOPPING_LIST_TIMEZONE", "").strip(),
         telemetry_enabled=bool(
             os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
             and os.environ.get("OTEL_SDK_DISABLED", "").strip().lower() != "true"

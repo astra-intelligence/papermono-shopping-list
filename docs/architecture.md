@@ -79,10 +79,13 @@ would otherwise block every edit behind it forever.
 ### When the device syncs
 
 - At boot, straight after showing the cached list.
-- Every hour (`Config::kSyncIntervalMs`).
+- On the server's schedule: each sync response says how long to wait (`next_sync_in_s`,
+  see [Sync schedule](api.md#sync-schedule)), so the device stays quiet overnight
+  and syncs more at weekends if so configured. Without an answer (a failed sync, or
+  an older server) it falls back to every hour (`Config::kSyncIntervalMs`).
 - Opportunistically on any tap, if the last successful sync is more than 5
   minutes old (`Config::kTapSyncStaleMs`) - otherwise a stale list would just
-  sit there for the rest of the hour while someone's actively using the
+  sit there until the next scheduled sync while someone's actively using the
   device. The header shows "syncing..." while this runs.
 - As soon as possible after a local edit (tick, add or quantity change), with
   a shorter Wi-Fi timeout (5 s rather than 15 s) so a tap made out of range

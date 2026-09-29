@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sync schedule</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+</head>
+<body>
+<header class="topbar">
+  <h1>Sync schedule</h1>
+  <div class="topbar-actions">
+    <a href="/" class="icon-btn" aria-label="Back to the shopping list">List</a>
+  </div>
+</header>
+
+<main class="schedule">
+  <p class="hint">How often the device checks in with the server. Tapping an item on the device always syncs straight away. Changes reach the device the next time it syncs.</p>
+
+  <div class="seg" role="radiogroup" aria-label="Profile">
+    <label><input type="radio" name="profile" value="weekday" checked><span>Weekdays</span></label>
+    <label><input type="radio" name="profile" value="weekend"><span>Weekends</span></label>
+  </div>
+
+  <label class="check hidden" id="sameRow"><input type="checkbox" id="sameBox"> Same as weekdays</label>
+
+  <div class="presets" id="presets" role="radiogroup" aria-label="Sync preset">
+    <p class="empty" id="loadingMessage">Loading…</p>
+  </div>
+
+  <section class="strips" id="strips" aria-label="Sync times across the day"></section>
+
+  <button id="saveBtn" type="button" disabled>Save schedule</button>
+</main>
+
+<div id="toast" class="toast hidden" role="alert"></div>
+
+<script src="/static/schedule.js?v={{ static_version }}"></script>
+</body>
+</html>

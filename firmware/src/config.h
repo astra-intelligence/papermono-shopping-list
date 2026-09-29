@@ -30,12 +30,18 @@ constexpr uint32_t kWifiConnectTimeoutMs = 15000;
 constexpr uint32_t kInteractiveWifiTimeoutMs = 5000;
 constexpr uint32_t kHttpTimeoutMs = 8000;
 
-constexpr uint32_t kSyncIntervalMs = 60UL * 60UL * 1000UL; // periodic wake; on-demand sync also runs
+// How long to wait for the next periodic sync when the server hasn't said (a failed sync, or an older
+// server). Normally the server's schedule decides: each sync response carries `next_sync_in_s`.
+constexpr uint32_t kSyncIntervalMs = 60UL * 60UL * 1000UL;
+// Whatever the server asks for is clamped to this range, so a bad value can neither spin the radio
+// nor leave the device out of touch for good.
+constexpr uint32_t kMinScheduledSyncMs = 30UL * 1000UL;
+constexpr uint32_t kMaxScheduledSyncMs = 12UL * 60UL * 60UL * 1000UL;
 // After a failed sync, don't retry for this long, so repeated taps don't each pay the full timeout.
 constexpr uint32_t kFailedSyncCooldownMs = 30UL * 1000UL;
 // A tap anywhere on the shopping list opportunistically syncs if the last one is older than this -
-// otherwise, with the periodic wake now a full hour, a stale list would just sit there for the rest
-// of that hour while someone's actively using the device.
+// otherwise, with periodic syncs up to hours apart (overnight, or on a sparse schedule), a stale list
+// would just sit there until the next one while someone's actively using the device.
 constexpr uint32_t kTapSyncStaleMs = 5UL * 60UL * 1000UL;
 
 // Force a full-panel refresh after this many fast partial updates. Unbounded partial refreshes

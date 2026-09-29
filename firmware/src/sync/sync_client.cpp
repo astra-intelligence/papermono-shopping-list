@@ -120,6 +120,7 @@ static void addHealthHeaders(HTTPClient& http) {
 }
 
 bool SyncClient::fetch(ShoppingData& data) {
+    _nextSyncDelayMs = 0;
     HTTPClient http;
     http.setTimeout(Config::kHttpTimeoutMs);
     if (!http.begin(String(Config::kServerBaseUrl) + "/api/sync")) return false;
@@ -148,6 +149,13 @@ bool SyncClient::fetch(ShoppingData& data) {
     data.categories = ModelJson::readArray(doc["categories"].as<JsonArrayConst>(), ModelJson::categoryFrom);
     data.items = ModelJson::readArray(doc["items"].as<JsonArrayConst>(), ModelJson::itemFrom);
     data.catalog = ModelJson::readArray(doc["catalog"].as<JsonArrayConst>(), ModelJson::catalogEntryFrom);
+
+    const char* syncedAt = doc["synced_at"] | "";
+    _status.lastSyncClock = syncedAt;
+
+    // The server's schedule (quiet hours, weekend profile) reaches us only as this one number.
+    const uint32_t nextSyncSec = doc["next_sync_in_s"] | 0u;
+    _nextSyncDelayMs = nextSyncSec <= UINT32_MAX / 1000 ? nextSyncSec * 1000 : 0;
 
     // "firmware" is absent unless the server wants this device on a different version.
     _offer = FirmwareOffer();

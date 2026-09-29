@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS catalog (
     name TEXT PRIMARY KEY,
     category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL
 );
+
+-- Small server-side settings, one JSON document per key (currently just the device sync schedule).
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 

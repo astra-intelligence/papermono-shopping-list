@@ -36,11 +36,32 @@ All configuration is through environment variables:
 | `SHOPPING_LIST_CLASSIFY_TIMEOUT` | `30` | Seconds before giving up on a classification. |
 | `SHOPPING_LIST_FIRMWARE_DIR` | `data/firmware` | Directory holding OTA images, one `<version>.bin` each. Relative to the working directory. The systemd unit and Docker image point it at `firmware/` under their data directory. |
 | `SHOPPING_LIST_FIRMWARE_VERSION` | *(unset)* | The version every device should be running. Unset means no OTA is offered. |
+| `SHOPPING_LIST_TIMEZONE` | *(unset)* | IANA timezone, e.g. `Europe/Dublin`, that the [sync schedule](#sync-schedule) reads its clock times and weekends in. Unset uses the server's own local time, which is UTC in most containers, so set it. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | *(unset)* | Turns on OpenTelemetry export when set. See [Observability](#observability-opentelemetry). |
 
 A new database starts with only the `Uncategorized` aisle. Add your real aisles
 from the web UI (**Aisles**) in the order you walk the shop. The classifier only
 runs once at least one aisle exists.
+
+## Sync schedule
+
+The device doesn't decide when to sync; the server tells it. Every sync response
+carries `next_sync_in_s`, and the device sleeps that long (see
+[the API](api.md#sync-schedule)). Open **Schedule** at the top of the web UI, or
+`/schedule`, to choose a preset for weekdays and another for weekends:
+
+| Preset | When |
+|--------|------|
+| Before and after work | Hourly 07:00-09:00 and 17:00-22:00 |
+| Daytime (default) | Every 30 minutes 07:00-22:00 |
+| Battery saver | Hourly 08:00-20:00 |
+| Always fresh | Every 15 minutes, day and night |
+
+Presets are defined in `src/shopping_list/schedule.py`; add one there and it
+appears on the page. Taps and edits on the device still sync straight away
+whatever the schedule says. Changes take effect on a device's next sync. The wait
+is never more than 12 hours, so a device always checks in at least that often.
+Set `SHOPPING_LIST_TIMEZONE`, or "07:00" means 07:00 on the server's clock.
 
 ## Auto-sorting with Claude
 

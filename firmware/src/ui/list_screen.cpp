@@ -116,7 +116,13 @@ void ListScreen::drawHeader(M5GFX& gfx) {
         snprintf(syncText, sizeof(syncText), "syncing...");
     } else {
         const SyncStatus& status = SyncClient::getInstance().status();
+        // A time of day, not an age: the panel only repaints on a sync, so an age would read "0s"
+        // until the next one. Old servers send no time; fall back to the (frozen) age for them.
+        const bool haveClock = status.lastSyncClock.length() > 0;
         if (status.lastSuccessMs == 0) snprintf(syncText, sizeof(syncText), "not synced yet");
+        else if (!status.lastOk && haveClock)
+            snprintf(syncText, sizeof(syncText), "Offline, last %s", status.lastSyncClock.c_str());
+        else if (haveClock) snprintf(syncText, sizeof(syncText), "Synced %s", status.lastSyncClock.c_str());
         else formatAge(syncText, sizeof(syncText), "synced", status.lastSuccessMs);
     }
     // The status is all the header says: at size 1 it was tiny, and there's no title to share the bar

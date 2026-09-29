@@ -19,6 +19,10 @@ struct SyncStatus {
     uint32_t lastAttemptMs = 0;
     uint32_t lastSuccessMs = 0; // 0 = never succeeded since boot
     bool lastReachedWifi = false; // Wi-Fi connected on the last attempt, so a failure was the server's
+    // Server's local time of day ("14:05") at the last successful sync; empty until one succeeds, or
+    // if the server predates the field. The device has no clock, so this is how the header can say
+    // when the list was last updated.
+    String lastSyncClock;
 };
 
 class SyncClient {
@@ -45,6 +49,10 @@ public:
         return offer;
     }
 
+    // How long the server asked us to wait before the next periodic sync, per the last successful
+    // sync; 0 if it gave none (older server) or the last attempt failed.
+    uint32_t nextSyncDelayMs() const { return _nextSyncDelayMs; }
+
     // Wi-Fi up/down, shared with Ota, which needs the network outside of a sync.
     bool connectWifi(uint32_t timeoutMs);
     void disconnectWifi();
@@ -66,6 +74,7 @@ private:
 
     SyncStatus _status;
     FirmwareOffer _offer;
+    uint32_t _nextSyncDelayMs = 0;
 };
 
 } // namespace ShoppingList
