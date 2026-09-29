@@ -14,3 +14,4 @@ server/data/
 /deploy.sh
 /DEPLOY.md
 /.deploy-secrets.env
+.env

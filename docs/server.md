@@ -36,6 +36,7 @@ All configuration is through environment variables:
 | `SHOPPING_LIST_CLASSIFY_TIMEOUT` | `30` | Seconds before giving up on a classification. |
 | `SHOPPING_LIST_FIRMWARE_DIR` | `data/firmware` | Directory holding OTA images, one `<version>.bin` each. Relative to the working directory. The systemd unit and Docker image point it at `firmware/` under their data directory. |
 | `SHOPPING_LIST_FIRMWARE_VERSION` | *(unset)* | The version every device should be running. Unset means no OTA is offered. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | *(unset)* | Turns on OpenTelemetry export when set. See [Observability](#observability-opentelemetry). |
 
 A new database starts with only the `Uncategorized` aisle. Add your real aisles
 from the web UI (**Aisles**) in the order you walk the shop. The classifier only
@@ -91,6 +92,33 @@ directory. To stop offering updates, unset it. The sha256 and size sent to
 devices are computed from the file itself, so there's no catalog to keep in
 step. A version with no matching file is logged and skipped, and never breaks
 list sync.
+
+## Observability (OpenTelemetry)
+
+The server can export traces, metrics and logs over OTLP/HTTP. It is off unless
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. Install the extra
+(`pip install '.[otel]'`; the Docker image already includes it) and configure
+it with the standard OpenTelemetry environment variables. For a backend that takes
+OTLP directly, e.g. Bronto (EU region):
+
+```sh
+OTEL_EXPORTER_OTLP_ENDPOINT=https://ingestion.eu.bronto.io
+OTEL_EXPORTER_OTLP_HEADERS=x-bronto-api-key=<ingestion key>   # a secret: keep it in the env file
+OTEL_SERVICE_NAME=shopping-list                               # the default
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=home
+```
+
+A Collector works the same way; only the endpoint and headers change. What's emitted:
+
+- **Traces:** a span per HTTP request (`traceparent` from the caller is honoured), plus a
+  `classify item` span around each aisle classification.
+- **Metrics** (`shopping_list.*`): items created and purchased, classifier calls by outcome and
+  their duration, sync requests and firmware offers/downloads by version, and the last battery,
+  Wi-Fi RSSI and free heap each firmware version reported.
+- **Logs:** the `shopping_list` logger, correlated to the active trace.
+
+Item names are included as span attributes and in log lines. Don't point this at a backend you
+wouldn't trust with your shopping list.
 
 ## Deploy with systemd
 

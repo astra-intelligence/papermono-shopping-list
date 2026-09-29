@@ -1,10 +1,15 @@
 """All SQL lives here; the routers only translate between HTTP and these functions."""
 
+import logging
 import sqlite3
+import time
 
+from . import telemetry
 from .classifier import ClassificationError, Classifier
 from .db import UNCATEGORIZED_NAME, UNCATEGORIZED_SORT_ORDER
 from .models import CatalogEntry, CategoryOut, ItemOut
+
+log = logging.getLogger(__name__)
 
 # Items and catalog entries whose aisle was deleted have category_id NULL (ON DELETE SET NULL); both
 # are reported as belonging to Uncategorized.
@@ -217,13 +222,29 @@ def _classify(conn: sqlite3.Connection, item_name: str, classifier: Classifier) 
     aisles = [c for c in list_categories(conn) if c.name != UNCATEGORIZED_NAME]
     if not aisles:
         # Nothing to choose between yet; don't let the classifier invent the first aisle.
-        return uncategorized_id(conn)
-    try:
-        result = classifier.classify(item_name, [c.name for c in aisles])
-    except ClassificationError:
+        telemetry.classifications.add(1, {"outcome": "skipped"})
         return uncategorized_id(conn)
 
-    existing = find_category_by_name(conn, result.category_name)
-    if existing is not None:
-        return existing.id
-    return create_category(conn, result.category_name).id
+    with telemetry.tracer.start_as_current_span("classify item") as span:
+        span.set_attribute("item.name", item_name)
+        start = time.perf_counter()
+        try:
+            result = classifier.classify(item_name, [c.name for c in aisles])
+        except ClassificationError as exc:
+            outcome = "failed"
+            span.record_exception(exc)
+            log.warning("classifying %r failed: %s", item_name, exc)
+            category_id = uncategorized_id(conn)
+        else:
+            existing = find_category_by_name(conn, result.category_name)
+            outcome = "existing" if existing is not None else "new_aisle"
+            category_id = (
+                existing.id if existing is not None else create_category(conn, result.category_name).id
+            )
+            span.set_attribute("category.name", result.category_name)
+            log.info("classified %r -> %r (%s)", item_name, result.category_name, outcome)
+        span.set_attribute("classifier.outcome", outcome)
+        elapsed = time.perf_counter() - start
+    telemetry.classifications.add(1, {"outcome": outcome})
+    telemetry.classify_duration.record(elapsed, {"outcome": outcome})
+    return category_id

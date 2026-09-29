@@ -155,6 +155,14 @@ Items added while the server can't be reached show in grey under **PENDING SYNC*
 and can't be ticked until they've synced. Everything on screen and every queued
 edit survives a reboot.
 
+## Telemetry
+
+Each sync request also carries `X-Battery-Percent`, `X-Wifi-Rssi`, `X-Free-Heap` and a W3C
+`traceparent`. The server turns them into metrics and joins its spans to that trace when
+OpenTelemetry is enabled ([details](server.md#observability-opentelemetry)). The device runs no
+OpenTelemetry SDK and sends nothing anywhere but your server. The trace id is also printed on the
+serial log (`sync traceparent ...`), so a sync can be matched to the server's view of it.
+
 ## Power
 
 Wi-Fi is on only during a sync, and the frontlight is off unless you turn it on.

@@ -3,7 +3,7 @@ FROM python:3.13-slim
 WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[otel]'
 
 # The image doesn't include the Claude Code CLI, so auto-classification is off by default here.
 # Mount or install a `claude` binary and set SHOPPING_LIST_CLASSIFIER=claude to enable it.

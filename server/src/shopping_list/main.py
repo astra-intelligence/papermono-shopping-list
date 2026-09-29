@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from . import telemetry
 from .classifier import Classifier, build_classifier
 from .config import Settings, load_settings
 from .db import init_db
@@ -67,6 +68,13 @@ def create_app(settings: Settings | None = None, classifier: Classifier | None =
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-cache"
         return response
+
+    if settings.telemetry_enabled:
+        # Observability must never keep the list itself from starting (e.g. the `otel` extra missing).
+        try:
+            telemetry.setup(app)
+        except Exception:
+            logging.getLogger(__name__).exception("OpenTelemetry setup failed; continuing without it")
 
     app.include_router(categories.router)
     app.include_router(items.router)
