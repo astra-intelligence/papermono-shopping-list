@@ -42,6 +42,9 @@ public:
     // whole screen.
     void setSyncing(bool syncing);
 
+    // Same slot in the header as "syncing...", for the (much longer) firmware download.
+    void setUpdating(bool updating);
+
 private:
     struct Line {
         bool isHeader;
@@ -66,6 +69,7 @@ private:
     std::vector<Line> _lines;
     int _scrollOffset = 0; // index into _lines of the first visible line
     bool _syncing = false;
+    bool _updating = false;
 };
 
 } // namespace ShoppingList

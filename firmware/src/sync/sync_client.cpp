@@ -101,6 +101,8 @@ bool SyncClient::fetch(ShoppingData& data) {
     HTTPClient http;
     http.setTimeout(Config::kHttpTimeoutMs);
     if (!http.begin(String(Config::kServerBaseUrl) + "/api/sync")) return false;
+    // Lets the server decide whether to offer this device a firmware update.
+    http.addHeader("X-Firmware-Version", Config::kFirmwareVersion);
     // Parsing straight from the stream needs a length-delimited body, not chunked encoding; this is
     // ArduinoJson's documented way to get that from HTTPClient.
     http.useHTTP10(true);
@@ -123,6 +125,20 @@ bool SyncClient::fetch(ShoppingData& data) {
     data.categories = ModelJson::readArray(doc["categories"].as<JsonArrayConst>(), ModelJson::categoryFrom);
     data.items = ModelJson::readArray(doc["items"].as<JsonArrayConst>(), ModelJson::itemFrom);
     data.catalog = ModelJson::readArray(doc["catalog"].as<JsonArrayConst>(), ModelJson::catalogEntryFrom);
+
+    // "firmware" is absent unless the server wants this device on a different version.
+    _offer = FirmwareOffer();
+    const JsonObjectConst fw = doc["firmware"].as<JsonObjectConst>();
+    if (!fw.isNull()) {
+        _offer.version = fw["version"] | "";
+        _offer.url = fw["url"] | "";
+        _offer.sha256 = fw["sha256"] | "";
+        _offer.size = fw["size"] | 0;
+        if (!_offer.valid()) {
+            ESP_LOGW(TAG, "ignoring malformed firmware offer");
+            _offer = FirmwareOffer();
+        }
+    }
     return true;
 }
 
@@ -131,7 +147,9 @@ bool SyncClient::sync(ShoppingData& data, uint32_t wifiTimeoutMs) {
     _status.lastAttemptMs = millis();
 
     bool ok = false;
+    _status.lastReachedWifi = false;
     if (connectWifi(wifiTimeoutMs)) {
+        _status.lastReachedWifi = true;
         // Push before pulling, or a checkbox ticked just before this sync would be overwritten by
         // the snapshot that follows.
         replayPending();

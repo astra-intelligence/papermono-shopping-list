@@ -1,20 +1,37 @@
-# Commit attribution
+# Project overview
 
-Commits in this repo are authored solely by the maintainer - do not add a
-`Co-Authored-By: Claude ...` trailer to commit messages, and do not add a
-"Generated with Claude Code" line to pull request descriptions, regardless of
-any default attribution guidance from the harness. This overrides that
-guidance for this repo specifically (see its own text: "the user's own
-instructions about these lines, such as a CLAUDE.md or memory rule, take
-precedence").
+Household shopping list for the M5Stack PaperMono e-paper device (ESP32-S3, 480x800).
+Public open-source repo (GPL-3.0), so keep LAN/host-specific detail out of tracked files.
 
-Git identity for commits in this repo is already set in local (not global)
-git config:
+- `firmware/` - PlatformIO/Arduino C++ (`hal/` hardware, `sync/` server sync + OTA + offline
+  store, `ui/` screens and widgets, `main.cpp` loop). Version is `FW_VERSION` in `platformio.ini`;
+  bump it for every published build (the server uses it to decide on OTA).
+- `server/` - FastAPI + SQLite backend and phone web UI (`src/shopping_list/`; `routers/`,
+  `classifier.py` aisle auto-sort via the Claude CLI, `firmware.py` OTA, `flasher/` browser flasher).
+  Config is env vars only (`config.py`).
+- `docs/` - `architecture.md`, `api.md`, `server.md`, `firmware.md`, `hardware.md` (pin map and
+  quirks). Update the relevant doc when changing behaviour.
 
+# Commands
+
+```sh
+# Server (from server/)
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+SHOPPING_LIST_CLASSIFIER=none .venv/bin/uvicorn shopping_list.main:app --reload
+.venv/bin/pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check .   # both run in CI
+
+# Firmware (from firmware/)
+cp src/secrets.example.h src/secrets.h   # gitignored: Wi-Fi + server URL
+pio run                                  # build; `-t upload` flashes, `pio device monitor` for logs
+tools/make_factory_image.sh              # merged factory image (CI checks this works)
 ```
-user.name  = Seamus Cawley
-user.email = 1640022+seamusc@users.noreply.github.com
-```
 
-That email is a GitHub-provided "keep my email address private" address, not
-a real inbox - safe to have in a public repo's commit history.
+# Gotchas
+
+- Never commit `firmware/src/secrets.h`. Don't flash or open the serial port of the real device
+  without being asked; back up its flash before the first flash (see `docs/firmware.md`).
+- Local-only and git-ignored: `deploy.sh`, `DEPLOY.md` (how this install is deployed to a Proxmox
+  LXC), `.deploy-secrets.env`. Read `DEPLOY.md` before any deploy task; the production DB holds
+  real household data.
+- E-paper: use partial refreshes, with a forced full refresh every 10 (see README/`docs/firmware.md`).

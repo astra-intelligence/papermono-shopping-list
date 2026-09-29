@@ -18,6 +18,11 @@ constexpr const char* kWifiSsid = SHOPPING_LIST_WIFI_SSID;
 constexpr const char* kWifiPassword = SHOPPING_LIST_WIFI_PASSWORD;
 constexpr const char* kServerBaseUrl = SHOPPING_LIST_SERVER_URL;
 
+#ifndef FW_VERSION
+#error "FW_VERSION isn't defined - it's set in platformio.ini's build_flags."
+#endif
+constexpr const char* kFirmwareVersion = FW_VERSION;
+
 // Wi-Fi is only switched on for the length of one sync. A periodic sync can afford to wait; one
 // triggered by a tap uses the shorter timeout, because the main loop (touch included) blocks for the
 // whole connect attempt and the common real-world failure is being out of range in the shop.
@@ -37,6 +42,15 @@ constexpr uint32_t kTapSyncStaleMs = 5UL * 60UL * 1000UL;
 // build up ghosting and DC imbalance on the SSD1677 panel; ~10 is the usual guidance for this
 // hardware.
 constexpr uint16_t kMaxPartialRefreshes = 10;
+
+// OTA updates (see sync/ota.h). Only started with this much battery left, or on charge, so a flash
+// can't run out of power halfway.
+constexpr int kOtaMinBatteryPercent = 50;
+// After a failed attempt, don't try again for this long, so a bad link can't turn every sync into a
+// download-and-fail loop.
+constexpr uint32_t kOtaRetryAfterFailureMs = 24UL * 60UL * 60UL * 1000UL;
+// Give up on a download that hasn't delivered a byte for this long.
+constexpr uint32_t kOtaStallTimeoutMs = 15000;
 
 // Upper bound on queued offline edits; normal use keeps 0-3.
 constexpr size_t kMaxPendingActions = 100;

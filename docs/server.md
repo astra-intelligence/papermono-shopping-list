@@ -34,6 +34,8 @@ All configuration is through environment variables:
 | `SHOPPING_LIST_CLASSIFIER` | `claude` | `claude` to auto-sort new items, `none` to disable. |
 | `CLAUDE_BIN` | `claude` | Path to the Claude Code CLI, if it isn't on the service's `PATH`. |
 | `SHOPPING_LIST_CLASSIFY_TIMEOUT` | `30` | Seconds before giving up on a classification. |
+| `SHOPPING_LIST_FIRMWARE_DIR` | `data/firmware` | Directory holding OTA images, one `<version>.bin` each. Relative to the working directory. The systemd unit and Docker image point it at `firmware/` under their data directory. |
+| `SHOPPING_LIST_FIRMWARE_VERSION` | *(unset)* | The version every device should be running. Unset means no OTA is offered. |
 
 A new database starts with only the `Uncategorized` aisle. Add your real aisles
 from the web UI (**Aisles**) in the order you walk the shop. The classifier only
@@ -62,6 +64,33 @@ To enable it on the server host:
 Don't leave a placeholder `ANTHROPIC_API_KEY` set alongside an OAuth token. The
 API key takes precedence, so every classification quietly fails and everything
 lands in `Uncategorized`.
+
+## Firmware updates (OTA)
+
+Devices report their version in an `X-Firmware-Version` header on every sync,
+and the server offers an update whenever that differs from
+`SHOPPING_LIST_FIRMWARE_VERSION` (see [the API](api.md#firmware-updates) and
+[how it works](architecture.md#firmware-updates-ota)). To publish a release:
+
+1. Set `FW_VERSION` in `firmware/platformio.ini` and build with `pio run`.
+2. Copy the app image, **not** the factory image, into the firmware directory,
+   named after the version:
+
+   ```sh
+   sudo install -d -o shopping-list /var/lib/papermono-shopping-list/firmware   # first time only
+   sudo install -o shopping-list firmware/.pio/build/papermono/firmware.bin \
+      /var/lib/papermono-shopping-list/firmware/1.4.0.bin
+   ```
+
+3. Set `SHOPPING_LIST_FIRMWARE_VERSION=1.4.0` in the service's environment and
+   restart it. Devices pick it up on their next sync, and the server logs each
+   sync's reported version so you can watch them arrive.
+
+To roll back, set the variable to an older version whose `.bin` is still in the
+directory. To stop offering updates, unset it. The sha256 and size sent to
+devices are computed from the file itself, so there's no catalog to keep in
+step. A version with no matching file is logged and skipped, and never breaks
+list sync.
 
 ## Deploy with systemd
 

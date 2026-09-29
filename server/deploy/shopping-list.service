@@ -15,6 +15,7 @@ User=shopping-list
 StateDirectory=papermono-shopping-list
 WorkingDirectory=/var/lib/papermono-shopping-list
 Environment=SHOPPING_LIST_DB=/var/lib/papermono-shopping-list/shopping.db
+Environment=SHOPPING_LIST_FIRMWARE_DIR=/var/lib/papermono-shopping-list/firmware
 # The claude CLI keeps its own state under $HOME, so it needs a writable one.
 Environment=HOME=/var/lib/papermono-shopping-list
 EnvironmentFile=-/etc/papermono-shopping-list.env

@@ -36,6 +36,11 @@ overwrite credentials a previous firmware stored.
 Other tunables (sync interval, timeouts, the partial-refresh limit) are in
 `src/config.h`.
 
+The firmware's own version is `FW_VERSION` in `platformio.ini`'s `build_flags`.
+The device sends it on every sync, and the server compares it with the version
+it wants the device on (see [OTA](#partition-layout-and-ota)). Bump it for every
+build you intend to publish.
+
 ## Build
 
 With [PlatformIO](https://platformio.org/) (CLI or the VS Code extension):
@@ -98,6 +103,35 @@ and `catalog.json` are git-ignored, so neither gets committed. Then open
 skip the catalog step entirely and flash any local `.bin` file by picking it
 directly in the page.
 
+## Partition layout and OTA
+
+`partitions_16mb.csv` has two equal app slots (`ota_0`, `ota_1`) plus `otadata`,
+which records which one boots. An update is written to whichever slot isn't
+running, and the boot slot only switches once it's verified. The old image stays
+in the other slot, which is what lets a bad update roll back. See
+[architecture.md](architecture.md#firmware-updates-ota) for the protocol.
+
+**Moving from the old single-slot layout needs one USB flash.** The partition
+table lives at a fixed offset and can't be changed over the air. Flash the new
+firmware once, with `pio run -t upload` or the merged image from the
+[web flasher](#from-a-browser), and every update after that can go over Wi-Fi.
+`nvs`, `phy_init` and `spiffs` are at the same offsets as before, so that flash
+keeps the Wi-Fi credentials and the cached list. The old app image ends up
+partly overwritten, so there's no going back to the old firmware without
+flashing it again. (The [backup](#back-up-the-device-first) still restores
+everything.)
+
+The merged factory image is rebuilt from the partition table by
+`tools/make_factory_image.sh`, which reads the `otadata` and `ota_0` offsets
+from `partitions_16mb.csv`. OTA itself needs only the app-only `firmware.bin`
+(see [server.md](server.md#firmware-updates-ota)). The web flasher's "app only"
+option writes at 0x10000, which is `otadata` in this layout, so use the merged
+image.
+
+The running version is `FW_VERSION`. A firmware flashed over USB starts out
+confirmed, since nothing has to be verified; only images installed by OTA go
+through the pending-verify step.
+
 ## Using it
 
 | Do this | What happens |
@@ -111,7 +145,7 @@ directly in the page.
 | Short press the power button | Power off. |
 
 The status LED blinks green after a successful sync and red after a failed one.
-The header shows how long ago the last successful sync was. The device syncs
+The header shows how long ago the last successful sync was (or "syncing..." / "updating firmware..." while one runs) on the left and the battery percentage on the right, both in large type. The device syncs
 periodically (every hour) and also opportunistically on any tap if the last
 sync is more than 5 minutes old, so actively using it keeps the list fresh
 without needing a fast fixed interval running in the background the rest of

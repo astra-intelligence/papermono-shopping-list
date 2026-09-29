@@ -72,8 +72,9 @@ From `firmware/platformio.ini`:
 - **Loop stack:** raised to 16 KB (`ARDUINO_LOOP_STACK_SIZE=16384`). The default
   8 KB overflowed while parsing JSON on top of the drawing code. That's this
   app's need, not the board's.
-- **Partitions** (`partitions_16mb.csv`): NVS, one 14 MB factory app slot (no
-  OTA) and a 1.9 MB data partition mounted as LittleFS.
+- **Partitions** (`partitions_16mb.csv`): NVS, `otadata`, two 7 MB OTA app slots
+  and a 1.9 MB data partition mounted as LittleFS. See
+  [firmware.md](firmware.md#partition-layout-and-ota).
 
 ## Bring-up sequence
 
