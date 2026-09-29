@@ -128,14 +128,17 @@ function planFromFile(name, u8, offsetChoice) {
     if (chip !== ESP32S3_CHIP_ID) { plan.lines.push(`Bootloader header chip id = ${chip ?? "none"}; expected ${ESP32S3_CHIP_ID} (ESP32-S3). Refusing.`); return plan; }
     if (!isMerged) { plan.lines.push("No partition table at 0x8000 in this file, so it isn't a merged image. Refusing to write it at 0x0."); return plan; }
     const parts = parsePartitionTable(u8.subarray(PT_OFFSET, PT_OFFSET + PT_MAX));
-    const app = parts.find((p) => p.type === 0 && p.offset === APP_OFFSET);
-    const desc = appDesc(u8, APP_OFFSET);
-    if (desc && imageChipId(u8, APP_OFFSET) !== ESP32S3_CHIP_ID) { plan.lines.push("App at 0x10000 is not an ESP32-S3 image. Refusing."); return plan; }
+    // The first app slot in the image's own table: the factory app at 0x10000 in a single-slot layout,
+    // ota_0 (elsewhere) in an OTA one.
+    const app = parts.find((p) => p.type === 0);
+    const appOffset = app ? app.offset : APP_OFFSET;
+    const desc = appDesc(u8, appOffset);
+    if (desc && imageChipId(u8, appOffset) !== ESP32S3_CHIP_ID) { plan.lines.push(`App at ${hex(appOffset)} is not an ESP32-S3 image. Refusing.`); return plan; }
     plan.meta = { kind: "merged", parts, desc };
     plan.lines.push(`Merged image, ${fmtSize(u8.length)} → 0x0`);
     if (desc) plan.lines.push(`App: ${desc.project} ${desc.version} (built ${desc.date} ${desc.time}, IDF ${desc.idf})`);
     plan.lines.push("Partition table in image: " + parts.map((p) => `${p.label}@${hex(p.offset)}`).join(", "));
-    if (!app) plan.lines.push("⚠ no app partition at 0x10000 in the image's table");
+    if (!app) plan.lines.push("⚠ no app partition in the image's table");
 
     // Segment the image; optionally skip the NVS range when it is only 0xFF padding.
     const nvs = parts.find((p) => p.type === 1 && p.subtype === 2);

@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,9 +12,19 @@ from .classifier import Classifier, build_classifier
 from .config import Settings, load_settings
 from .db import init_db
 from .routers import catalog, categories, items, sync
+from .routers import firmware as firmware_router
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PACKAGE_DIR / "static"
+
+# Uvicorn only configures its own loggers, so without this the app's INFO lines (notably which firmware
+# version each device reports on sync) would be dropped, leaving only warnings.
+_app_log = logging.getLogger("shopping_list")
+if not _app_log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
+    _app_log.addHandler(_handler)
+    _app_log.setLevel(logging.INFO)
 
 
 def _static_version() -> str:
@@ -61,6 +72,7 @@ def create_app(settings: Settings | None = None, classifier: Classifier | None =
     app.include_router(items.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    app.include_router(firmware_router.router)
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index(request: Request):

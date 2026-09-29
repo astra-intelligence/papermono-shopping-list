@@ -19,6 +19,10 @@ class Settings:
     # Path to the `claude` binary; set this when it isn't on the service's PATH (common under systemd).
     claude_bin: str
     classify_timeout_seconds: float
+    # Directory of OTA images, one `<version>.bin` each (the app-only firmware.bin, not the factory image).
+    firmware_dir: Path = Path("data/firmware")
+    # The version every device should run. None means no OTA is offered.
+    firmware_version: str | None = None
 
 
 def load_settings() -> Settings:
@@ -27,4 +31,6 @@ def load_settings() -> Settings:
         classifier=os.environ.get("SHOPPING_LIST_CLASSIFIER", "claude").strip().lower(),
         claude_bin=os.environ.get("CLAUDE_BIN", "claude"),
         classify_timeout_seconds=float(os.environ.get("SHOPPING_LIST_CLASSIFY_TIMEOUT", "30")),
+        firmware_dir=Path(os.environ.get("SHOPPING_LIST_FIRMWARE_DIR", "data/firmware")),
+        firmware_version=os.environ.get("SHOPPING_LIST_FIRMWARE_VERSION", "").strip() or None,
     )

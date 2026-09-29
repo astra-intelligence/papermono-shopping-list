@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir .
 # The image doesn't include the Claude Code CLI, so auto-classification is off by default here.
 # Mount or install a `claude` binary and set SHOPPING_LIST_CLASSIFIER=claude to enable it.
 ENV SHOPPING_LIST_DB=/data/shopping.db \
+    SHOPPING_LIST_FIRMWARE_DIR=/data/firmware \
     SHOPPING_LIST_CLASSIFIER=none
 VOLUME /data
 EXPOSE 8000

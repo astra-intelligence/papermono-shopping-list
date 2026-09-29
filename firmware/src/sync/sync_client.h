@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "model.h"
+#include "sync/ota.h"
 
 namespace ShoppingList {
 
@@ -17,6 +18,7 @@ struct SyncStatus {
     bool lastOk = false;
     uint32_t lastAttemptMs = 0;
     uint32_t lastSuccessMs = 0; // 0 = never succeeded since boot
+    bool lastReachedWifi = false; // Wi-Fi connected on the last attempt, so a failure was the server's
 };
 
 class SyncClient {
@@ -35,6 +37,18 @@ public:
 
     const SyncStatus& status() const { return _status; }
 
+    // The firmware update the last successful sync offered, if any; consumed by the call. The sync
+    // only records the offer - acting on it is main.cpp's decision, after the list is safely saved.
+    FirmwareOffer takeFirmwareOffer() {
+        FirmwareOffer offer = _offer;
+        _offer = FirmwareOffer();
+        return offer;
+    }
+
+    // Wi-Fi up/down, shared with Ota, which needs the network outside of a sync.
+    bool connectWifi(uint32_t timeoutMs);
+    void disconnectWifi();
+
 private:
     SyncClient() = default;
 
@@ -46,13 +60,12 @@ private:
                    // would block everything queued behind it forever
     };
 
-    bool connectWifi(uint32_t timeoutMs);
-    void disconnectWifi();
     void replayPending();
     PushResult push(const PendingAction& action);
     bool fetch(ShoppingData& data);
 
     SyncStatus _status;
+    FirmwareOffer _offer;
 };
 
 } // namespace ShoppingList

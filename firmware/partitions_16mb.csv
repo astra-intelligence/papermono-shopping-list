@@ -1,7 +1,14 @@
 # Name,   Type, SubType, Offset,  Size,     Flags
-# Single factory app slot (no OTA). The "spiffs" partition is mounted as LittleFS by
-# src/sync/local_store.cpp - LittleFS only needs the offset and size, not a matching subtype.
+# Two equal app slots for OTA updates (see docs/firmware.md#partition-layout-and-ota): an update is
+# written to whichever slot isn't running, and otadata records which one boots. nvs, phy_init and
+# spiffs are at the same offsets as the old single-slot layout, so switching to this table (which needs
+# one USB flash) keeps the Wi-Fi credentials in nvs and the list cache in spiffs.
+#
+# The "spiffs" partition is mounted as LittleFS by src/sync/local_store.cpp - LittleFS only needs the
+# offset and size, not a matching subtype.
 nvs,      data, nvs,     0x9000,  0x6000,
 phy_init, data, phy,     0xf000,  0x1000,
-factory,  app,  factory, 0x10000, 0xE00000,
+otadata,  data, ota,     0x10000, 0x2000,
+ota_0,    app,  ota_0,   0x20000, 0x6F0000,
+ota_1,    app,  ota_1,   0x710000,0x6F0000,
 spiffs,   data, spiffs,  0xE10000,0x1E0000,

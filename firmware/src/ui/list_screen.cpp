@@ -4,6 +4,7 @@
 
 #include <esp_log.h>
 
+#include "hal/bsp.h"
 #include "hal/epd.h"
 #include "sync/local_store.h"
 #include "sync/sync_client.h"
@@ -106,24 +107,43 @@ void ListScreen::draw(M5GFX& gfx) {
 }
 
 void ListScreen::drawHeader(M5GFX& gfx) {
-    UI::header(gfx, "SHOPPING LIST", 3);
+    UI::headerBar(gfx);
 
     char syncText[24];
-    if (_syncing) {
+    if (_updating) {
+        snprintf(syncText, sizeof(syncText), "updating firmware...");
+    } else if (_syncing) {
         snprintf(syncText, sizeof(syncText), "syncing...");
     } else {
         const SyncStatus& status = SyncClient::getInstance().status();
         if (status.lastSuccessMs == 0) snprintf(syncText, sizeof(syncText), "not synced yet");
         else formatAge(syncText, sizeof(syncText), "synced", status.lastSuccessMs);
     }
+    // The status is all the header says: at size 1 it was tiny, and there's no title to share the bar
+    // with any more (the list, add bar and buttons make the screen's purpose obvious). Size 3 is 18 px
+    // per glyph and fills the bar's height; the longest string, "updating firmware...", is 360 px of the
+    // 452 available.
     gfx.setTextColor(TFT_BLACK);
+    gfx.setTextDatum(textdatum_t::middle_left);
+    gfx.setTextSize(3);
+    gfx.drawString(syncText, UI::kContentX + 4, UI::kHeaderY + UI::kHeaderH / 2);
+
+    // Battery on the far right. Widest case is "100%" = 72 px, starting at x=390; the status text ends
+    // by x=378 at its longest, so the two never touch. (It only refreshes when the header is redrawn.)
+    char batteryText[8];
+    snprintf(batteryText, sizeof(batteryText), "%d%%", BSP::getInstance().getBatteryState().percentage);
     gfx.setTextDatum(textdatum_t::middle_right);
-    gfx.setTextSize(1);
-    gfx.drawString(syncText, UI::kContentX + UI::kContentW, UI::kHeaderY + UI::kHeaderH / 2);
+    gfx.drawString(batteryText, UI::kContentX + UI::kContentW - 4, UI::kHeaderY + UI::kHeaderH / 2);
 }
 
 void ListScreen::setSyncing(bool syncing) {
     _syncing = syncing;
+    drawHeader(M5.Display);
+    Epd::getInstance().partialUpdate(0, UI::kHeaderY, UI::kScreenW, UI::kHeaderH);
+}
+
+void ListScreen::setUpdating(bool updating) {
+    _updating = updating;
     drawHeader(M5.Display);
     Epd::getInstance().partialUpdate(0, UI::kHeaderY, UI::kScreenW, UI::kHeaderH);
 }

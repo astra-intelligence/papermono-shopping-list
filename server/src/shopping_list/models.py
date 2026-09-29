@@ -56,7 +56,17 @@ class CatalogEntry(BaseModel):
     category_name: str
 
 
+class FirmwareOffer(BaseModel):
+    version: str
+    # Relative to the server address the device already has.
+    url: str
+    sha256: str
+    size: int
+
+
 class SyncResponse(BaseModel):
     categories: list[CategoryOut]
     items: list[ItemOut]
     catalog: list[CatalogEntry]
+    # Left out of the JSON entirely (not null) unless the device should update; see routers/sync.py.
+    firmware: FirmwareOffer | None = None

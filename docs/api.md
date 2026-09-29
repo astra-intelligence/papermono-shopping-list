@@ -46,6 +46,48 @@ read.
   aisle. Items with no aisle sort with `Uncategorized`, last. Clients render in
   this order and rely on it for grouping.
 - `catalog` is alphabetical.
+- `firmware` is only present when the server wants the requesting device on a
+  different firmware version. See [Firmware updates](#firmware-updates).
+
+## Firmware updates
+
+The device says which firmware it's running with a request header on
+`GET /api/sync`:
+
+```
+X-Firmware-Version: 1.3.2
+```
+
+The server decides whether that device should update. If so, the sync response
+gains one extra top-level field:
+
+```jsonc
+{
+  "categories": [...], "items": [...], "catalog": [...],
+  "firmware": {
+    "version": "1.4.0",
+    "url": "/api/firmware/1.4.0.bin",   // relative to the server address
+    "sha256": "9f2c...",                // 64 lowercase hex characters
+    "size": 1310720                     // bytes
+  }
+}
+```
+
+The key is **omitted entirely** (not `null`) when there's nothing to do: the
+device already reports the target version, the header is missing or malformed,
+no target version is configured, or the binary for it isn't on the server. A
+missing binary is logged as a warning and never fails the sync.
+
+The device installs `version` if it differs from what it's running, not only if
+it's newer. That is what makes a rollback work: point the server's target back
+at an older version.
+
+### `GET /api/firmware/{version}.bin` -> `200`
+
+The application image (`application/octet-stream`) for that version, with
+`Content-Length` and an `ETag`. This is the app-only `firmware.bin` that
+PlatformIO builds, **not** the merged factory image the web flasher uses. `404`
+if the server has no image for that version.
 
 ## Items
 

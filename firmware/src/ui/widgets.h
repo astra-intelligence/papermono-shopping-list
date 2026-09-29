@@ -97,11 +97,15 @@ inline void dotScreen(M5GFX& g, int y, int h) {
     }
 }
 
-// textSize defaults to 2 (used by Settings and the quantity screen); the shopping list's header
-// passes 3 - it's the only title on screen there and has room to spare, so it reads at a glance.
-inline void header(M5GFX& g, const char* title, int textSize = 2) {
+// The bar without a title, for a screen that draws its own text in it (the shopping list's header).
+inline void headerBar(M5GFX& g) {
     dotScreen(g, kHeaderY, kHeaderH);
     g.drawFastHLine(0, kHeaderY + kHeaderH, kScreenW, TFT_BLACK);
+}
+
+// textSize defaults to 2 (used by Settings and the quantity screen).
+inline void header(M5GFX& g, const char* title, int textSize = 2) {
+    headerBar(g);
     g.setTextColor(TFT_BLACK);
     g.setTextDatum(textdatum_t::middle_left);
     g.setTextSize(textSize);

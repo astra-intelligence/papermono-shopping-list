@@ -14,6 +14,7 @@
 #include "hal/touch.h"
 #include "model.h"
 #include "sync/local_store.h"
+#include "sync/ota.h"
 #include "sync/sync_client.h"
 #include "ui/keyboard.h"
 #include "ui/list_screen.h"
@@ -21,6 +22,12 @@
 #include "ui/settings_screen.h"
 
 using namespace ShoppingList;
+
+// Overrides the Arduino core's weak default, which marks a new image valid the instant it boots. This
+// keeps an OTA-installed image "pending verify" until the first successful sync calls
+// Ota::confirmRunning(); if the device resets before then, the bootloader reverts to the previous
+// image. C linkage because the core's version is defined in C.
+extern "C" bool verifyRollbackLater() { return true; }
 
 namespace {
 
@@ -69,6 +76,23 @@ void showListFull() {
     Epd::getInstance().fullRefresh();
 }
 
+// Acts on a firmware update the last sync offered, if any. Runs after the sync so the list is already
+// saved and on screen: a skipped or failed update never leaves it stale. On success the device
+// reboots into the new image and this doesn't return.
+void maybeUpdateFirmware() {
+    const FirmwareOffer offer = SyncClient::getInstance().takeFirmwareOffer();
+    if (!offer.valid()) return;
+
+    const BatteryState battery = BSP::getInstance().getBatteryState();
+    Ota& ota = Ota::getInstance();
+    if (!ota.shouldInstall(offer, battery.percentage, battery.isCharging)) return;
+
+    // Painted before the blocking download, like "syncing..." above.
+    g_list.setUpdating(true);
+    ota.install(offer);
+    g_list.setUpdating(false);
+}
+
 void runSync(uint32_t wifiTimeoutMs) {
     // Compare before and after so a periodic sync that changed nothing doesn't flash the panel.
     const std::vector<Category> previousCategories = g_data.categories;
@@ -85,6 +109,9 @@ void runSync(uint32_t wifiTimeoutMs) {
         g_syncCooldownUntilMs = 0;
         g_list.onDataChanged();
         if (g_data.categories != previousCategories || g_data.items != previousItems) showListFull();
+        // Reaching the server is what proves a freshly installed firmware works.
+        Ota::getInstance().confirmRunning();
+        maybeUpdateFirmware();
     } else {
         BSP::getInstance().setLedSyncFailed();
         g_syncCooldownUntilMs = millis() + Config::kFailedSyncCooldownMs;
@@ -182,6 +209,7 @@ void setup() {
     Epd::getInstance().init();
     TouchManager::getInstance().init();
     LocalStore::getInstance().init();
+    Ota::getInstance().begin();
 
     // Show whatever was cached last time straight away; the first sync runs on the first loop.
     LocalStore::getInstance().loadCache(g_data);

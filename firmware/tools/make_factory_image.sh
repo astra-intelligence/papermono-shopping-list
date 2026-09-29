@@ -25,6 +25,24 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Offsets come from the partition table, so this can't drift from it. boot_app0.bin is the initial
+# otadata contents (boot the first OTA slot); PlatformIO writes it at the same place on upload.
+PARTITIONS_CSV="$PROJECT_DIR/partitions_16mb.csv"
+partition_offset() {
+  awk -F',' -v name="$1" '$1 !~ /^[[:space:]]*#/ { n = $1; o = $4; gsub(/[[:space:]]/, "", n); gsub(/[[:space:]]/, "", o); if (n == name) print o }' "$PARTITIONS_CSV"
+}
+APP_OFFSET=$(partition_offset ota_0)
+OTADATA_OFFSET=$(partition_offset otadata)
+BOOT_APP0="$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
+if [ -z "$APP_OFFSET" ] || [ -z "$OTADATA_OFFSET" ]; then
+  echo "error: no ota_0/otadata partition in $PARTITIONS_CSV" >&2
+  exit 1
+fi
+if [ ! -f "$BOOT_APP0" ]; then
+  echo "error: $BOOT_APP0 not found - run 'pio run' once to install the Arduino framework" >&2
+  exit 1
+fi
+
 for f in bootloader.bin partitions.bin firmware.bin; do
   if [ ! -f "$BUILD_DIR/$f" ]; then
     echo "error: $BUILD_DIR/$f not found - run 'pio run' first" >&2
@@ -49,11 +67,11 @@ fi
 
 mkdir -p "$DIST_DIR"
 IMAGE="$DIST_DIR/$IMAGE_NAME"
-# No otadata/boot_app0 segment: partitions_16mb.csv has a single factory app and no OTA slots.
 "${ESPTOOL[@]}" --chip esp32s3 "$MERGE" -o "$IMAGE" "$FLASH_SIZE" 16MB \
   0x0 "$BUILD_DIR/bootloader.bin" \
   0x8000 "$BUILD_DIR/partitions.bin" \
-  0x10000 "$BUILD_DIR/firmware.bin" >/dev/null
+  "$OTADATA_OFFSET" "$BOOT_APP0" \
+  "$APP_OFFSET" "$BUILD_DIR/firmware.bin" >/dev/null
 
 SHA256=$(sha256sum "$IMAGE" | cut -d' ' -f1)
 echo "$IMAGE"
